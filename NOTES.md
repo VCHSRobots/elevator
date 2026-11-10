@@ -12,7 +12,7 @@ This repository (`VCHSRobots/elevator`) is the code for the elevator test stand.
 
 ### Bench wiring and `BenchStand` (temporary)
 
-The stand is wired for a bench test, not the final elevator (`hardware/BenchWiring.java` holds the channels): a heartbeat LED on DIO 0 (330 ohm to ground), a Talon SR on PWM 0 (12 V) driving a lamp through 27 ohm / 5 W, and the LED's anode tapped on analog 0 through a 10k / 4.7k divider. `subsystems/BenchStand.java` blinks the LED at 5 Hz from `periodic()` (so also while disabled), sweeps the lamp 0 to full to 0 every 4 s as the default command (enabled only; never negative), and logs `ledAnodeVolts` (pin volts x 14.7 / 4.7). The old Elevator-EASDL-Test-2026 code ran on the same hardware. Remove `BenchStand` and `BenchWiring` when the real wiring replaces this. Not yet deployed or run on the stand.
+The stand is wired for a bench test, not the final elevator (`hardware/BenchWiring.java` holds the channels): a heartbeat LED on DIO 0 (330 ohm to ground), a Talon SR on PWM 0 (12 V) driving a lamp through 27 ohm / 5 W, and the Talon's output (ahead of the 27 ohm resistor) tapped on analog 0 through a 10k / 4.7k divider. `subsystems/BenchStand.java` blinks the LED at 5 Hz from `periodic()` (so also while disabled), sweeps the lamp 0 to full to 0 every 4 s as the default command (enabled only; never negative), and logs `lampVolts` (pin volts x 14.7 / 4.7, 64-sample hardware average plus a 10-loop moving average because the Talon chops its output). The old Elevator-EASDL-Test-2026 code ran on the same hardware. Remove `BenchStand` and `BenchWiring` when the real wiring replaces this. Not yet deployed or run on the stand.
 
 ## Layout
 

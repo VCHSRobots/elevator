@@ -1,6 +1,7 @@
 package frc.robot.subsystems;
 
 import edu.wpi.first.epilogue.Logged;
+import edu.wpi.first.math.filter.LinearFilter;
 import edu.wpi.first.wpilibj.AnalogInput;
 import edu.wpi.first.wpilibj.DigitalOutput;
 import edu.wpi.first.wpilibj.Timer;
@@ -12,7 +13,7 @@ import frc.robot.hardware.BenchWiring;
 /**
  * The elevator stand's bench test: a heartbeat LED that blinks at 5 Hz whenever the program runs
  * (enabled or not), a lamp on a Talon SR whose brightness sweeps up and down while enabled, and a
- * readback of the voltage at the heartbeat LED's anode.
+ * readback of the voltage the Talon delivers (averaged, because the Talon chops its output).
  */
 @Logged
 public class BenchStand extends SubsystemBase {
@@ -27,11 +28,16 @@ public class BenchStand extends SubsystemBase {
 
   private final Talon lamp = new Talon(BenchWiring.PWM_LAMP);
   private final DigitalOutput heartbeatLed = new DigitalOutput(BenchWiring.DIO_HEARTBEAT_LED);
-  private final AnalogInput ledSense = new AnalogInput(BenchWiring.ANALOG_LED_SENSE);
+  private final AnalogInput lampSense = new AnalogInput(BenchWiring.ANALOG_LAMP_SENSE);
+
+  /** Software average over this many 20 ms loops, on top of the hardware averaging. */
+  private static final int AVERAGE_LOOPS = 10;
+
+  private final LinearFilter lampVoltsFilter = LinearFilter.movingAverage(AVERAGE_LOOPS);
 
   boolean heartbeatOn;
   double lampCommand;
-  double ledAnodeVolts;
+  double lampVolts;
 
   /** True for the first half of each blink period, false for the second. */
   public static boolean heartbeatLevel(double seconds) {
@@ -50,6 +56,7 @@ public class BenchStand extends SubsystemBase {
   }
 
   public BenchStand() {
+    lampSense.setAverageBits(6); // 64 samples per reading smooths the Talon's chopping
     setDefaultCommand(sweepLamp());
   }
 
@@ -72,14 +79,14 @@ public class BenchStand extends SubsystemBase {
     return heartbeatOn;
   }
 
-  public double ledAnodeVolts() {
-    return ledAnodeVolts;
+  public double lampVolts() {
+    return lampVolts;
   }
 
   @Override
   public void periodic() {
     heartbeatOn = heartbeatLevel(Timer.getFPGATimestamp());
     heartbeatLed.set(heartbeatOn);
-    ledAnodeVolts = BenchWiring.anodeVolts(ledSense.getVoltage());
+    lampVolts = lampVoltsFilter.calculate(BenchWiring.lampVolts(lampSense.getAverageVoltage()));
   }
 }

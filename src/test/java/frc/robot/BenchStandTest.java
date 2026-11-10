@@ -38,19 +38,19 @@ class BenchStandTest {
   }
 
   @Test
-  void dividerReadsTheLedAnode() {
-    assertEquals(2.0, BenchWiring.anodeVolts(2.0 * 4.7 / 14.7), 1e-9);
+  void dividerReadsTheTalonOutput() {
+    assertEquals(2.0, BenchWiring.lampVolts(2.0 * 4.7 / 14.7), 1e-9);
   }
 
   @Test
   void lampSweepsWhenEnabledAndHeartbeatRunsWhenDisabled() {
     try (Scenario scenario = Scenario.start()) {
       BenchStand bench = new BenchStand();
-      AnalogInputSim sense = new AnalogInputSim(BenchWiring.ANALOG_LED_SENSE);
+      AnalogInputSim sense = new AnalogInputSim(BenchWiring.ANALOG_LAMP_SENSE);
       sense.setVoltage(0.64);
       scenario.run(0.5);
       assertEquals(0.0, bench.lampCommand(), 1e-9, "no lamp command while disabled");
-      assertEquals(0.64 * 14.7 / 4.7, bench.ledAnodeVolts(), 0.01);
+      assertEquals(0.64 * 14.7 / 4.7, bench.lampVolts(), 0.01);
       boolean sawOn = false;
       boolean sawOff = false;
       for (int i = 0; i < 25; i++) {
