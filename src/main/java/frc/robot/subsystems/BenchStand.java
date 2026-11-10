@@ -7,6 +7,8 @@ import edu.wpi.first.wpilibj.DigitalOutput;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.motorcontrol.Talon;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import java.util.function.DoubleSupplier;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.hardware.BenchWiring;
 
@@ -16,7 +18,7 @@ import frc.robot.hardware.BenchWiring;
  * readback of the voltage the Talon delivers (averaged, because the Talon chops its output).
  */
 @Logged
-public class BenchStand extends SubsystemBase {
+public class BenchStand extends SubsystemBase implements AutoCloseable {
   /** Blink rate of the heartbeat LED. */
   public static final double HEARTBEAT_HZ = 5.0;
 
@@ -57,7 +59,13 @@ public class BenchStand extends SubsystemBase {
 
   public BenchStand() {
     lampSense.setAverageBits(6); // 64 samples per reading smooths the Talon's chopping
-    setDefaultCommand(sweepLamp());
+    setDefaultCommand(sweepLamp()); // RobotContainer replaces this with the joystick
+  }
+
+  /** Sets the lamp's brightness from an input (0 to 1, such as a trigger) until interrupted. */
+  public Command joystickLamp(DoubleSupplier brightness) {
+    return runEnd(() -> setLamp(brightness.getAsDouble() * MAX_LAMP), () -> setLamp(0.0))
+        .withName("JoystickLamp");
   }
 
   /** Sweeps the lamp's brightness up and down until interrupted; leaves it off at the end. */
@@ -81,6 +89,19 @@ public class BenchStand extends SubsystemBase {
 
   public double lampVolts() {
     return lampVolts;
+  }
+
+  /** Releases the channels (the tests build several of these in one run). */
+  @Override
+  public void close() {
+    Command running = getCurrentCommand();
+    if (running != null) {
+      running.cancel();
+    }
+    CommandScheduler.getInstance().unregisterSubsystem(this);
+    lamp.close();
+    heartbeatLed.close();
+    lampSense.close();
   }
 
   @Override

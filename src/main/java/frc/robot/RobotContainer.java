@@ -1,6 +1,7 @@
 package frc.robot;
 
 import edu.wpi.first.epilogue.Logged;
+import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.hardware.Unit;
 import frc.robot.subsystems.BenchStand;
 import frc.robot.subsystems.ExampleSubsystem;
@@ -11,6 +12,7 @@ public class RobotContainer {
   final Unit unit;
   final ExampleSubsystem example;
   final BenchStand bench;
+  private final CommandXboxController driver = new CommandXboxController(0);
 
   public RobotContainer(Unit unit) {
     this.unit = unit;
@@ -20,6 +22,8 @@ public class RobotContainer {
   }
 
   private void configureBindings() {
-    // Bind driver controls here, for example with CommandXboxController.
+    // Right trigger sets the lamp brightness (0 to 1). Hold A for the automatic sweep instead.
+    bench.setDefaultCommand(bench.joystickLamp(driver::getRightTriggerAxis));
+    driver.a().whileTrue(bench.sweepLamp());
   }
 }
