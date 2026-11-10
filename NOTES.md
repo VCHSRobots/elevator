@@ -6,6 +6,10 @@ How this repository is organized and why. Forge reads this file before every cha
 
 A WPILib 2026 Java command-based robot program for a roboRIO, team 4415. It builds, simulates and deploys with the standard WPILib tools (VS Code, or `./gradlew` with the WPILib installation) and depends on nothing from Forge. Phoenix 6 (26.3.0) is in `vendordeps/` for the CTRE devices (Kraken X60 motors on TalonFX).
 
+## The elevator stand
+
+This repository (`VCHSRobots/elevator`) is the code for the elevator test stand. It started as the unchanged EPIC-Forge 2026 template. `KnownUnits` lists one unit so far: `elevator-stand`, roboRIO serial `03320607` (from the Test Controller's records; confirm it against `/Forge/Serial` on the first boot). `ExampleSubsystem` is still the template's placeholder: the elevator subsystem, its CAN IDs and its `Unit` constants are not written yet. Nothing has been deployed from here.
+
 ## Layout
 
 - `src/main/java/frc/robot/Main.java` starts the robot program, or the idle program when built with `-Pprogram=idle`.
