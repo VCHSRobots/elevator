@@ -10,6 +10,10 @@ A WPILib 2026 Java command-based robot program for a roboRIO, team 4415. It buil
 
 This repository (`VCHSRobots/elevator`) is the code for the elevator test stand. It started as the unchanged EPIC-Forge 2026 template. `KnownUnits` lists one unit so far: `elevator-stand`, roboRIO serial `03320607` (from the Test Controller's records; confirm it against `/Forge/Serial` on the first boot). `ExampleSubsystem` is still the template's placeholder: the elevator subsystem, its CAN IDs and its `Unit` constants are not written yet. Nothing has been deployed from here.
 
+### Bench wiring and `BenchStand` (temporary)
+
+The stand is wired for a bench test, not the final elevator (`hardware/BenchWiring.java` holds the channels): a heartbeat LED on DIO 0 (330 ohm to ground), a Talon SR on PWM 0 (12 V) driving a lamp through 27 ohm / 5 W, and the LED's anode tapped on analog 0 through a 10k / 4.7k divider. `subsystems/BenchStand.java` blinks the LED at 5 Hz from `periodic()` (so also while disabled), sweeps the lamp 0 to full to 0 every 4 s as the default command (enabled only; never negative), and logs `ledAnodeVolts` (pin volts x 14.7 / 4.7). The old Elevator-EASDL-Test-2026 code ran on the same hardware. Remove `BenchStand` and `BenchWiring` when the real wiring replaces this. Not yet deployed or run on the stand.
+
 ## Layout
 
 - `src/main/java/frc/robot/Main.java` starts the robot program, or the idle program when built with `-Pprogram=idle`.

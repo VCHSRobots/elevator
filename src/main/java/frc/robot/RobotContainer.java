@@ -2,6 +2,7 @@ package frc.robot;
 
 import edu.wpi.first.epilogue.Logged;
 import frc.robot.hardware.Unit;
+import frc.robot.subsystems.BenchStand;
 import frc.robot.subsystems.ExampleSubsystem;
 
 /** The subsystems of this unit, built from its hardware map, and the controls bound to them. */
@@ -9,10 +10,12 @@ import frc.robot.subsystems.ExampleSubsystem;
 public class RobotContainer {
   final Unit unit;
   final ExampleSubsystem example;
+  final BenchStand bench;
 
   public RobotContainer(Unit unit) {
     this.unit = unit;
     example = new ExampleSubsystem();
+    bench = new BenchStand();
     configureBindings();
   }
 
