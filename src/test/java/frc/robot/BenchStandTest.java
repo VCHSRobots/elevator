@@ -44,8 +44,8 @@ class BenchStandTest {
 
   @Test
   void lampSweepsWhenEnabledAndHeartbeatRunsWhenDisabled() {
-    try (Scenario scenario = Scenario.start()) {
-      BenchStand bench = new BenchStand();
+    try (Scenario scenario = Scenario.start();
+        BenchStand bench = new BenchStand()) {
       AnalogInputSim sense = new AnalogInputSim(BenchWiring.ANALOG_LAMP_SENSE);
       sense.setVoltage(0.64);
       scenario.run(0.5);
@@ -71,6 +71,25 @@ class BenchStandTest {
       assertTrue(max > 0.9, "lamp gets bright: " + max);
       assertTrue(min < 0.1, "lamp gets dim: " + min);
       assertTrue(min >= 0.0 && max <= BenchStand.MAX_LAMP);
+    }
+  }
+
+  @Test
+  void joystickSetsLampBrightnessAndClampsIt() {
+    try (Scenario scenario = Scenario.start();
+        BenchStand bench = new BenchStand()) {
+      double[] input = {0.0};
+      bench.setDefaultCommand(bench.joystickLamp(() -> input[0]));
+      scenario.enable();
+      input[0] = 0.4;
+      scenario.run(0.2);
+      assertEquals(0.4, bench.lampCommand(), 1e-9);
+      input[0] = 5.0;
+      scenario.run(0.2);
+      assertEquals(BenchStand.MAX_LAMP, bench.lampCommand(), 1e-9, "clamped to the limit");
+      input[0] = -1.0;
+      scenario.run(0.2);
+      assertEquals(0.0, bench.lampCommand(), 1e-9, "never negative");
     }
   }
 }

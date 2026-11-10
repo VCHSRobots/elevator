@@ -50,3 +50,7 @@ This is the 2026 season: GradleRIO 2026.2.1 (`build.gradle`), `frcYear = '2026'`
 2. Set the GradleRIO version, `frcYear` and `projectYear` to the new year. Read the version from the Gradle plugin portal (`edu.wpi.first.GradleRIO`).
 3. Replace the vendordeps: `WPILibNewCommands.json` from the `allwpilib` tag of that release, and CTRE's `Phoenix6-frc<year>-latest.json` from `https://maven.ctr-electronics.com/release/com/ctre/phoenix6/latest/`. Delete the old Phoenix file. GradleRIO refuses a vendordep whose year is wrong, which is how you find any you missed.
 4. Run `./gradlew build`, then `--offline`. Fix what the new WPILib or Epilogue changed.
+
+### Joystick lamp control (temporary, bench wiring)
+- `RobotContainer` binds an Xbox controller on port 0: the **right trigger** sets the lamp brightness (0 to 1) and is the `BenchStand` default command. Holding **A** runs the old automatic sweep instead.
+- `BenchStand` is now `AutoCloseable` so tests can build several; `joystickLamp(DoubleSupplier)` clamps to 0..`MAX_LAMP`.
