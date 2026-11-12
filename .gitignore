@@ -9,3 +9,4 @@ networktables.json
 .idea/
 *.iml
 .DS_Store
+ctre_sim/

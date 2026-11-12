@@ -15,6 +15,13 @@ public final class BenchWiring {
   public static final int DIO_HEARTBEAT_LED = 0;
   public static final int ANALOG_LAMP_SENSE = 0;
 
+  /**
+   * The Driver Station port of the person's Xbox controller for the lamp (right trigger; hold A for
+   * the sweep). Port 0 is Forge's pad now (see RobotContainer.FORGE_PAD_PORT), so the lamp moved
+   * to port 1.
+   */
+  public static final int LAMP_PAD_PORT = 1;
+
   public static final double DIVIDER_UPPER_OHMS = 10_000.0;
   public static final double DIVIDER_LOWER_OHMS = 4_700.0;
 

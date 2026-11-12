@@ -66,6 +66,9 @@ test {
 // The simulation GUI opens unless -Pheadless is given (Forge runs it headless).
 wpi.sim.addGui().defaultEnabled = !project.hasProperty("headless")
 wpi.sim.addDriverstation()
+// The HAL WebSocket server (ws://localhost:3300/wpilibws; HALSIMWS_PORT and HALSIMWS_URI change
+// it), through which the harness acts as the simulator's Driver Station: add -Pwebsockets.
+wpi.sim.addWebsocketsServer().defaultEnabled = project.hasProperty("websockets")
 
 // Build identity, written at compile time. `-Pprogram=idle` builds the idle program instead of
 // the robot program: same code, Main picks one from BuildConstants.PROGRAM.

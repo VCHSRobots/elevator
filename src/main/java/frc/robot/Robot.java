@@ -5,6 +5,7 @@ import edu.wpi.first.epilogue.Logged;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.forge.Identity;
+import frc.robot.sim.SimRegistry;
 
 /** The robot program. Subsystems live in RobotContainer; this class only runs the scheduler. */
 @Logged
@@ -35,5 +36,7 @@ public class Robot extends TimedRobot {
   public void testPeriodic() {}
 
   @Override
-  public void simulationPeriodic() {}
+  public void simulationPeriodic() {
+    SimRegistry.update(getPeriod()); // every subsystem's physics, then the battery's sag
+  }
 }

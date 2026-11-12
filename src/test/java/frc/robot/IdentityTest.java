@@ -29,7 +29,7 @@ class IdentityTest {
   @Test
   void theSerialSelectsTheUnit() {
     assertTrue(KnownUnits.forSerial("simulation").known());
-    Unit stand = KnownUnits.forSerial("03320607");
+    Unit stand = KnownUnits.forSerial("031be686");
     assertTrue(stand.known());
     assertEquals("elevator-stand", stand.name());
     Unit stranger = KnownUnits.forSerial("0000BEEF");
