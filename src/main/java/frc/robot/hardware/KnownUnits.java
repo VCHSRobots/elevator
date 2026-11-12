@@ -6,8 +6,8 @@ import java.util.List;
 public final class KnownUnits {
   public static final Unit SIMULATION = new Unit("simulation", "simulation", true);
 
-  /** The elevator stand's roboRIO. The serial came from the Test Controller's records; confirm it from /Forge/Serial on first boot. */
-  public static final Unit ELEVATOR_STAND = new Unit("elevator-stand", "03320607", true);
+  /** The elevator stand's roboRIO. Serial seen by the harness and the program log on 2026-11-11. */
+  public static final Unit ELEVATOR_STAND = new Unit("elevator-stand", "031be686", true);
 
   /** Add one line per physical unit: its name and its roboRIO's serial (RobotController). */
   public static final List<Unit> ALL = List.of(SIMULATION, ELEVATOR_STAND);
