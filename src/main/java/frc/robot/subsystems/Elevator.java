@@ -281,6 +281,23 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
     publish();
   }
 
+  /** Read-backs on the diagnostics table: what the elevator decided this cycle. */
+  public void publishDiagnostics(edu.wpi.first.networktables.NetworkTable t) {
+    t.getEntry("Elev/Zeroed").setBoolean(zeroed);
+    t.getEntry("Elev/Aborted").setBoolean(aborted);
+    t.getEntry("Elev/Mode").setString(mode.name());
+    t.getEntry("Elev/Running").setString(runningCommand);
+    t.getEntry("Elev/StickAxis").setDouble(stickAxis);
+    t.getEntry("Elev/WantedMeters").setDouble(wantedMeters);
+    t.getEntry("Elev/TargetMeters").setDouble(targetMeters);
+    t.getEntry("Elev/HeightMeters").setDouble(heightMeters);
+    t.getEntry("Elev/SimHeightMeters").setDouble(simHeightMeters());
+    t.getEntry("Elev/AppliedVolts").setDouble(appliedVolts);
+    t.getEntry("Elev/StatorAmps").setDouble(statorAmps);
+    t.getEntry("Elev/BottomPressed").setBoolean(bottomPressed);
+    t.getEntry("Elev/TopPressed").setBoolean(topPressed);
+  }
+
   /** Holds the target, but rests on the bottom stop and never presses into the top one. */
   private void drive() {
     if (bottomPressed && targetMeters <= heightMeters + TOLERANCE_METERS) {

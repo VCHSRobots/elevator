@@ -20,6 +20,7 @@ public class Robot extends TimedRobot {
   @Override
   public void robotPeriodic() {
     CommandScheduler.getInstance().run();
+    container.publishDiagnostics();
   }
 
   // Empty on purpose: TimedRobot prints "Override me!" for each mode method left out.

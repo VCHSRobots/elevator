@@ -1,6 +1,8 @@
 package frc.robot;
 
 import edu.wpi.first.epilogue.Logged;
+import edu.wpi.first.epilogue.NotLogged;
+import frc.robot.forge.Diagnostics;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.hardware.BenchWiring;
 import frc.robot.hardware.Unit;
@@ -35,6 +37,8 @@ public class RobotContainer {
   /** How long a stick dropout is bridged by the last good reading, in seconds. */
   static final double STICK_DROPOUT_SECONDS = 0.5;
 
+  @NotLogged private final Diagnostics diag = new Diagnostics();
+  private long stickCalls;
   private double lastStick = 0.0;
   private double lastStickTime = Double.NEGATIVE_INFINITY;
 
@@ -46,13 +50,25 @@ public class RobotContainer {
    */
   private double stickHeightAxis() {
     double now = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
-    if (edu.wpi.first.wpilibj.DriverStation.getStickAxisCount(FORGE_PAD_PORT) > 0) {
-      lastStick = -forgePad.getLeftY();
+    stickCalls++;
+    boolean fresh = edu.wpi.first.wpilibj.DriverStation.getStickAxisCount(FORGE_PAD_PORT) > 0;
+    double read = fresh ? -forgePad.getLeftY() : Double.NaN;
+    if (fresh) {
+      lastStick = read;
       lastStickTime = now;
     } else if (now - lastStickTime > STICK_DROPOUT_SECONDS) {
       lastStick = 0.0;
     }
+    diag.publishStick(stickCalls, fresh, read, lastStick, now - lastStickTime);
     return lastStick;
+  }
+
+  /** Read-backs on /Forge/Diag, once per robot cycle. */
+  public void publishDiagnostics() {
+    diag.publishRobot();
+    diag.publishPad(FORGE_PAD_PORT, "Forge");
+    diag.publishPad(BenchWiring.LAMP_PAD_PORT, "Lamp");
+    elevator.publishDiagnostics(diag.table());
   }
 
   private void configureBindings() {
