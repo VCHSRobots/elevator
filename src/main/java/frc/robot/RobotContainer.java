@@ -32,24 +32,36 @@ public class RobotContainer {
     configureBindings();
   }
 
+  /** How long a stick dropout is bridged by the last good reading, in seconds. */
+  static final double STICK_DROPOUT_SECONDS = 0.5;
+
+  private double lastStick = 0.0;
+  private double lastStickTime = Double.NEGATIVE_INFINITY;
+
+  /**
+   * The stick for the elevator: forward is positive. The simulator hands the robot fresh joystick
+   * data only on the cycle after each update and reports "no axes" in between, so a reading with
+   * no axes is a dropout, not a stick at rest. A dropout keeps the last good value for
+   * STICK_DROPOUT_SECONDS, then reads 0 (a pad that is really gone).
+   */
+  private double stickHeightAxis() {
+    double now = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
+    if (edu.wpi.first.wpilibj.DriverStation.getStickAxisCount(FORGE_PAD_PORT) > 0) {
+      lastStick = -forgePad.getLeftY();
+      lastStickTime = now;
+    } else if (now - lastStickTime > STICK_DROPOUT_SECONDS) {
+      lastStick = 0.0;
+    }
+    return lastStick;
+  }
+
   private void configureBindings() {
     // Forge drives through forgePad, which reads as an untouched controller unless Forge is
     // driving; bind the same commands to a driver's pad on another port.
     forgePad.x().onTrue(elevator.home());
     // The main stick sets the height: pushed forward (left Y negative) is up, released is the
     // bottom. The target moves toward it at a moderate rate. Jog and home take over while held.
-    elevator.setDefaultCommand(elevator.followAxis(
-            () -> {
-              // Diagnostic: what the robot's driver station layer reports for the stick.
-              var nt = edu.wpi.first.networktables.NetworkTableInstance.getDefault();
-              nt.getEntry("/Forge/Diag/rawAxis1")
-                  .setDouble(edu.wpi.first.wpilibj.DriverStation.getStickAxis(0, 1));
-              nt.getEntry("/Forge/Diag/axisCount")
-                  .setDouble(edu.wpi.first.wpilibj.DriverStation.getStickAxisCount(0));
-              nt.getEntry("/Forge/Diag/connected")
-                  .setBoolean(edu.wpi.first.wpilibj.DriverStation.isJoystickConnected(0));
-              return -forgePad.getLeftY();
-            }));
+    elevator.setDefaultCommand(elevator.followAxis(this::stickHeightAxis));
     forgePad.rightBumper().whileTrue(elevator.jog(() -> 1.0));
     forgePad.leftBumper().whileTrue(elevator.jog(() -> -1.0));
 
