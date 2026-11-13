@@ -23,6 +23,7 @@ import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.networktables.StructArrayPublisher;
+import edu.wpi.first.networktables.StructPublisher;
 import edu.wpi.first.units.measure.Angle;
 import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
@@ -82,6 +83,8 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
   @NotLogged private final MechanismLigament2d carriage;
   @NotLogged private final SendableBuilderImpl mechanismBuilder = new SendableBuilderImpl();
   @NotLogged private final StructArrayPublisher<Pose3d> components;
+  /** Where the whole stand sits: always the origin, so the Robot row never moves the frame. */
+  @NotLogged private final StructPublisher<Pose3d> robotPose;
 
   Mode mode = Mode.HOLD;
   double heightMeters;
@@ -135,6 +138,7 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
     SendableRegistry.publish(mechanism, mechanismBuilder);
     mechanismBuilder.startListeners();
     components = nt.getStructArrayTopic(TABLE + "/Components", Pose3d.struct).publish();
+    robotPose = nt.getStructTopic(TABLE + "/RobotPose", Pose3d.struct).publish();
 
     if (RobotBase.isSimulation()) {
       sim = new ElevatorSimulation(leader, follower, bottomSwitch, topSwitch, simStartMeters);
@@ -290,6 +294,7 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
   private void publish() {
     carriage.setLength(Math.max(heightMeters, 0.0) + 0.05);
     mechanismBuilder.update();
+    robotPose.set(Pose3d.kZero);
     components.set(
         new Pose3d[] {
           new Pose3d(
@@ -305,6 +310,7 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
       SimRegistry.unregister(sim);
     }
     components.close();
+    robotPose.close();
     forgeAbort.close();
     mechanismBuilder.close();
     mechanism.close();
