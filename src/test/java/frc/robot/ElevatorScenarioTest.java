@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.networktables.BooleanPublisher;
 import edu.wpi.first.networktables.NetworkTableInstance;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
@@ -37,6 +38,28 @@ class ElevatorScenarioTest {
       assertTrue(highest[0] <= Elevator.MAX_HEIGHT_METERS + TOLERANCE, "highest " + highest[0]);
       assertTrue(highest[0] < ElevatorConstants.TRAVEL_METERS, "it reached the hard stop");
       assertEquals(Elevator.MAX_HEIGHT_METERS, elevator.simHeightMeters(), TOLERANCE);
+    }
+  }
+
+  @Test
+  void theFrameStaysStillWhileOnlyTheCarriageRises() {
+    var nt = NetworkTableInstance.getDefault();
+    try (Scenario scenario = Scenario.start();
+        Elevator elevator = new Elevator(0.0);
+        var robotPose = nt.getStructTopic("/Forge/Elevator/RobotPose", Pose3d.struct).subscribe(new Pose3d());
+        var components =
+            nt.getStructArrayTopic("/Forge/Elevator/Components", Pose3d.struct)
+                .subscribe(new Pose3d[0])) {
+      scenario.run(0.1);
+      scenario.enable();
+      CommandScheduler.getInstance().schedule(elevator.goTo(MID));
+      scenario.run(8.0);
+      assertEquals(0.0, robotPose.get().getZ(), 1e-9);
+      assertEquals(0.0, robotPose.get().getX(), 1e-9);
+      assertEquals(
+          ElevatorConstants.CARRIAGE_ORIGIN_AT_BOTTOM.getZ() + MID,
+          components.get()[0].getZ(),
+          TOLERANCE);
     }
   }
 
