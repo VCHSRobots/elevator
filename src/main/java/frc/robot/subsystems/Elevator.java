@@ -91,6 +91,9 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
   double heightMeters;
   double velocityMps;
   double targetMeters;
+  double wantedMeters;
+  double stickAxis;
+  String runningCommand = "";
   double jogVolts;
   double appliedVolts;
   double statorAmps;
@@ -189,7 +192,9 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
                 return;
               }
               mode = Mode.HOLD;
-              double wanted = MathUtil.clamp(axis.getAsDouble(), 0.0, 1.0) * MAX_HEIGHT_METERS;
+              stickAxis = axis.getAsDouble();
+              double wanted = MathUtil.clamp(stickAxis, 0.0, 1.0) * MAX_HEIGHT_METERS;
+              wantedMeters = wanted;
               targetMeters = rate.calculate(wanted);
             },
             this::holdHere)
@@ -255,6 +260,8 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
     }
     wasBottomPressed = bottomPressed;
     aborted = forgeAbort.isSet();
+    var running = getCurrentCommand();
+    runningCommand = running == null ? "none" : running.getName();
 
     if (DriverStation.isDisabled() || aborted) {
       // On enable, or once Forge's abort flag clears, hold where the carriage is, not where it
