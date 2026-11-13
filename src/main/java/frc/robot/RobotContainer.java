@@ -36,9 +36,9 @@ public class RobotContainer {
     // Forge drives through forgePad, which reads as an untouched controller unless Forge is
     // driving; bind the same commands to a driver's pad on another port.
     forgePad.x().onTrue(elevator.home());
-    forgePad.a().onTrue(elevator.goTo(0.0));
-    forgePad.b().onTrue(elevator.goTo(Elevator.MAX_HEIGHT_METERS / 2));
-    forgePad.y().onTrue(elevator.goTo(Elevator.MAX_HEIGHT_METERS));
+    // The main stick sets the height: pushed forward (left Y negative) is up, released is the
+    // bottom. The target moves toward it at a moderate rate. Jog and home take over while held.
+    elevator.setDefaultCommand(elevator.followAxis(() -> -forgePad.getLeftY()));
     forgePad.rightBumper().whileTrue(elevator.jog(() -> 1.0));
     forgePad.leftBumper().whileTrue(elevator.jog(() -> -1.0));
 

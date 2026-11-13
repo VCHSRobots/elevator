@@ -27,7 +27,7 @@ class ElevatorScenarioTest {
       scenario.enable();
 
       CommandScheduler.getInstance().schedule(elevator.goTo(MID));
-      scenario.run(8.0); // at 1 in/s (0.025 m/s) the 0.12 m takes about 5 s
+      scenario.run(8.0); // at 0.15 m/s the 0.12 m takes about 1 s
       assertEquals(MID, elevator.simHeightMeters(), TOLERANCE);
       assertEquals(MID, elevator.heightMeters(), TOLERANCE);
 
@@ -107,7 +107,7 @@ class ElevatorScenarioTest {
       scenario.run(0.1);
       scenario.enable();
       CommandScheduler.getInstance().schedule(elevator.goTo(0.2));
-      scenario.run(2.0);
+      scenario.run(1.0);
       double rising = elevator.simHeightMeters();
       assertTrue(rising > 0.02, "it started up: " + rising);
 
@@ -123,6 +123,38 @@ class ElevatorScenarioTest {
       scenario.run(1.5);
       assertFalse(elevator.aborted());
       assertEquals(cleared, elevator.simHeightMeters(), 0.05);
+    }
+  }
+
+  @Test
+  void theStickSetsTheHeightAtAModerateRate() {
+    var stick = new double[] {0.0};
+    try (Scenario scenario = Scenario.start();
+        Elevator elevator = new Elevator(0.0)) {
+      elevator.setDefaultCommand(elevator.followAxis(() -> stick[0]));
+      scenario.run(0.1);
+      scenario.enable();
+      scenario.run(1.0);
+      assertEquals(0.0, elevator.simHeightMeters(), TOLERANCE, "stick at rest stays at the bottom");
+
+      stick[0] = 1.0; // full forward: the top, reached at no more than STICK_RATE_MPS
+      double[] fastest = {0.0};
+      double[] last = {0.0};
+      scenario.run(
+          3.0,
+          () -> {
+            fastest[0] = Math.max(fastest[0], (elevator.simHeightMeters() - last[0]) / 0.02);
+            last[0] = elevator.simHeightMeters();
+          });
+      assertEquals(Elevator.MAX_HEIGHT_METERS, elevator.simHeightMeters(), TOLERANCE);
+      assertTrue(fastest[0] < ElevatorConstants.STICK_RATE_MPS * 1.5, "too fast: " + fastest[0]);
+
+      stick[0] = 0.5;
+      scenario.run(3.0);
+      assertEquals(Elevator.MAX_HEIGHT_METERS / 2, elevator.simHeightMeters(), TOLERANCE);
+      stick[0] = 0.0;
+      scenario.run(3.0);
+      assertEquals(0.0, elevator.simHeightMeters(), TOLERANCE);
     }
   }
 }

@@ -18,6 +18,7 @@ import com.ctre.phoenix6.signals.NeutralModeValue;
 import edu.wpi.first.epilogue.Logged;
 import edu.wpi.first.epilogue.NotLogged;
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Translation3d;
@@ -172,6 +173,28 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
             },
             this::holdHere)
         .withName("ElevatorJog");
+  }
+
+  /**
+   * Follows a stick: the axis (0 to 1, 0 the bottom, 1 the top of the soft limit) is the height
+   * wanted, and the target moves toward it at no more than {@code STICK_RATE_MPS}. Starts from
+   * where the carriage is, so taking over never jumps. Does nothing until homed. Runs until
+   * another command takes the subsystem.
+   */
+  public Command followAxis(DoubleSupplier axis) {
+    var rate = new SlewRateLimiter(STICK_RATE_MPS);
+    return runEnd(
+            () -> {
+              if (!zeroed) {
+                return;
+              }
+              mode = Mode.HOLD;
+              double wanted = MathUtil.clamp(axis.getAsDouble(), 0.0, 1.0) * MAX_HEIGHT_METERS;
+              targetMeters = rate.calculate(wanted);
+            },
+            this::holdHere)
+        .beforeStarting(() -> rate.reset(heightMeters))
+        .withName("ElevatorFollowAxis");
   }
 
   /** Lowers slowly onto the bottom switch, which zeroes the height, then holds there. */
