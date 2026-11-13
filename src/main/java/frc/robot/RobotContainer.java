@@ -38,7 +38,18 @@ public class RobotContainer {
     forgePad.x().onTrue(elevator.home());
     // The main stick sets the height: pushed forward (left Y negative) is up, released is the
     // bottom. The target moves toward it at a moderate rate. Jog and home take over while held.
-    elevator.setDefaultCommand(elevator.followAxis(() -> -forgePad.getLeftY()));
+    elevator.setDefaultCommand(elevator.followAxis(
+            () -> {
+              // Diagnostic: what the robot's driver station layer reports for the stick.
+              var nt = edu.wpi.first.networktables.NetworkTableInstance.getDefault();
+              nt.getEntry("/Forge/Diag/rawAxis1")
+                  .setDouble(edu.wpi.first.wpilibj.DriverStation.getStickAxis(0, 1));
+              nt.getEntry("/Forge/Diag/axisCount")
+                  .setDouble(edu.wpi.first.wpilibj.DriverStation.getStickAxisCount(0));
+              nt.getEntry("/Forge/Diag/connected")
+                  .setBoolean(edu.wpi.first.wpilibj.DriverStation.isJoystickConnected(0));
+              return -forgePad.getLeftY();
+            }));
     forgePad.rightBumper().whileTrue(elevator.jog(() -> 1.0));
     forgePad.leftBumper().whileTrue(elevator.jog(() -> -1.0));
 
