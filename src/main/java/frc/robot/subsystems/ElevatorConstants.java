@@ -60,11 +60,14 @@ public final class ElevatorConstants {
   /** 20 A, as the stand's code limits it. */
   public static final double STATOR_CURRENT_LIMIT_AMPS = 20.0;
   /**
-   * Chosen to suit the short travel: times kSlowFirst this is 1 in/s, the speed of the stand's
-   * first hardware runs (not a measured fact).
+   * Chosen to suit the short travel and a stick that moves it: times kSlowFirst this is 6 in/s
+   * (0.152 m/s), a little above {@link #STICK_RATE_MPS} so the profile keeps up. The stand's
+   * first hardware runs were 1 in/s: this is faster, so a person must watch it first.
    */
-  public static final double CRUISE_VELOCITY_MPS = 0.0254 * 4.0;
-  public static final double ACCELERATION_MPS2 = 0.0254 * 8.0;
+  public static final double CRUISE_VELOCITY_MPS = 0.0254 * 24.0;
+  public static final double ACCELERATION_MPS2 = 0.0254 * 160.0;
+  /** How fast the stick's height may move the target: 0.12 m/s, about 4.7 in/s (not measured). */
+  public static final double STICK_RATE_MPS = 0.12;
   public static final double JOG_VOLTS = 3.0;
   /** Downward voltage, beyond holding against gravity, while homing onto the bottom switch. */
   public static final double HOME_VOLTS = 1.0;

@@ -18,6 +18,7 @@ import com.ctre.phoenix6.signals.NeutralModeValue;
 import edu.wpi.first.epilogue.Logged;
 import edu.wpi.first.epilogue.NotLogged;
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Translation3d;
@@ -90,6 +91,9 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
   double heightMeters;
   double velocityMps;
   double targetMeters;
+  double wantedMeters;
+  double stickAxis;
+  String runningCommand = "";
   double jogVolts;
   double appliedVolts;
   double statorAmps;
@@ -174,6 +178,30 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
         .withName("ElevatorJog");
   }
 
+  /**
+   * Follows a stick: the axis (0 to 1, 0 the bottom, 1 the top of the soft limit) is the height
+   * wanted, and the target moves toward it at no more than {@code STICK_RATE_MPS}. Starts from
+   * where the carriage is, so taking over never jumps. Does nothing until homed. Runs until
+   * another command takes the subsystem.
+   */
+  public Command followAxis(DoubleSupplier axis) {
+    var rate = new SlewRateLimiter(STICK_RATE_MPS);
+    return runEnd(
+            () -> {
+              if (!zeroed) {
+                return;
+              }
+              mode = Mode.HOLD;
+              stickAxis = axis.getAsDouble();
+              double wanted = MathUtil.clamp(stickAxis, 0.0, 1.0) * MAX_HEIGHT_METERS;
+              wantedMeters = wanted;
+              targetMeters = rate.calculate(wanted);
+            },
+            this::holdHere)
+        .beforeStarting(() -> rate.reset(heightMeters))
+        .withName("ElevatorFollowAxis");
+  }
+
   /** Lowers slowly onto the bottom switch, which zeroes the height, then holds there. */
   public Command home() {
     return runEnd(
@@ -232,6 +260,8 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
     }
     wasBottomPressed = bottomPressed;
     aborted = forgeAbort.isSet();
+    var running = getCurrentCommand();
+    runningCommand = running == null ? "none" : running.getName();
 
     if (DriverStation.isDisabled() || aborted) {
       // On enable, or once Forge's abort flag clears, hold where the carriage is, not where it
@@ -249,6 +279,23 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
       drive();
     }
     publish();
+  }
+
+  /** Read-backs on the diagnostics table: what the elevator decided this cycle. */
+  public void publishDiagnostics(edu.wpi.first.networktables.NetworkTable t) {
+    t.getEntry("Elev/Zeroed").setBoolean(zeroed);
+    t.getEntry("Elev/Aborted").setBoolean(aborted);
+    t.getEntry("Elev/Mode").setString(mode.name());
+    t.getEntry("Elev/Running").setString(runningCommand);
+    t.getEntry("Elev/StickAxis").setDouble(stickAxis);
+    t.getEntry("Elev/WantedMeters").setDouble(wantedMeters);
+    t.getEntry("Elev/TargetMeters").setDouble(targetMeters);
+    t.getEntry("Elev/HeightMeters").setDouble(heightMeters);
+    t.getEntry("Elev/SimHeightMeters").setDouble(simHeightMeters());
+    t.getEntry("Elev/AppliedVolts").setDouble(appliedVolts);
+    t.getEntry("Elev/StatorAmps").setDouble(statorAmps);
+    t.getEntry("Elev/BottomPressed").setBoolean(bottomPressed);
+    t.getEntry("Elev/TopPressed").setBoolean(topPressed);
   }
 
   /** Holds the target, but rests on the bottom stop and never presses into the top one. */

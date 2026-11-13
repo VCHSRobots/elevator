@@ -1,6 +1,8 @@
 package frc.robot;
 
 import edu.wpi.first.epilogue.Logged;
+import edu.wpi.first.epilogue.NotLogged;
+import frc.robot.forge.Diagnostics;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.hardware.BenchWiring;
 import frc.robot.hardware.Unit;
@@ -32,13 +34,50 @@ public class RobotContainer {
     configureBindings();
   }
 
+  /** How long a stick dropout is bridged by the last good reading, in seconds. */
+  static final double STICK_DROPOUT_SECONDS = 0.5;
+
+  @NotLogged private final Diagnostics diag = new Diagnostics();
+  private long stickCalls;
+  private double lastStick = 0.0;
+  private double lastStickTime = Double.NEGATIVE_INFINITY;
+
+  /**
+   * The stick for the elevator: forward is positive. The simulator hands the robot fresh joystick
+   * data only on the cycle after each update and reports "no axes" in between, so a reading with
+   * no axes is a dropout, not a stick at rest. A dropout keeps the last good value for
+   * STICK_DROPOUT_SECONDS, then reads 0 (a pad that is really gone).
+   */
+  private double stickHeightAxis() {
+    double now = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
+    stickCalls++;
+    boolean fresh = edu.wpi.first.wpilibj.DriverStation.getStickAxisCount(FORGE_PAD_PORT) > 0;
+    double read = fresh ? -forgePad.getLeftY() : Double.NaN;
+    if (fresh) {
+      lastStick = read;
+      lastStickTime = now;
+    } else if (now - lastStickTime > STICK_DROPOUT_SECONDS) {
+      lastStick = 0.0;
+    }
+    diag.publishStick(stickCalls, fresh, read, lastStick, now - lastStickTime);
+    return lastStick;
+  }
+
+  /** Read-backs on /Forge/Diag, once per robot cycle. */
+  public void publishDiagnostics() {
+    diag.publishRobot();
+    diag.publishPad(FORGE_PAD_PORT, "Forge");
+    diag.publishPad(BenchWiring.LAMP_PAD_PORT, "Lamp");
+    elevator.publishDiagnostics(diag.table());
+  }
+
   private void configureBindings() {
     // Forge drives through forgePad, which reads as an untouched controller unless Forge is
     // driving; bind the same commands to a driver's pad on another port.
     forgePad.x().onTrue(elevator.home());
-    forgePad.a().onTrue(elevator.goTo(0.0));
-    forgePad.b().onTrue(elevator.goTo(Elevator.MAX_HEIGHT_METERS / 2));
-    forgePad.y().onTrue(elevator.goTo(Elevator.MAX_HEIGHT_METERS));
+    // The main stick sets the height: pushed forward (left Y negative) is up, released is the
+    // bottom. The target moves toward it at a moderate rate. Jog and home take over while held.
+    elevator.setDefaultCommand(elevator.followAxis(this::stickHeightAxis));
     forgePad.rightBumper().whileTrue(elevator.jog(() -> 1.0));
     forgePad.leftBumper().whileTrue(elevator.jog(() -> -1.0));
 
