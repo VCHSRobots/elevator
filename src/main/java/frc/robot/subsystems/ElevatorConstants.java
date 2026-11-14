@@ -23,7 +23,16 @@ public final class ElevatorConstants {
   public static final boolean LEADER_CLOCKWISE_POSITIVE = false;
   /** The left motor turns clockwise to raise it: opposite to the leader (mounted mirrored). */
   public static final boolean FOLLOWER_OPPOSED = true;
-  // No limit switches: the stand has hard stops that cannot be hurt however hard the motor drives.
+  /**
+   * UNKNOWN: no limit switches are known to be wired on the stand. These two channels are stand-ins
+   * on spare DIO ports (DIO 0 is the bench heartbeat LED); an unwired input reads high, which means
+   * "not pressed". With no bottom switch the elevator can never zero, so {@code goTo} refuses on
+   * the real stand until a switch is wired and these channels are set.
+   */
+  public static final int BOTTOM_LIMIT_DIO = 8;
+  public static final int TOP_LIMIT_DIO = 9;
+  /** True for a switch wired between the DIO and ground: the input reads false when pressed. */
+  public static final boolean LIMIT_PRESSED_IS_LOW = true;
 
   // Geometry. Two Kraken X44 on a chain, one stage.
   /** 2.875 motor rotations per sprocket-shaft turn (the stand's notes). */
@@ -35,10 +44,10 @@ public final class ElevatorConstants {
   public static final double DRUM_RADIUS_METERS = 4.0 * 0.0254 / (2 * Math.PI);
   /** UNKNOWN: the carriage's mass. 2 kg is a stand-in, so the sim's gravity load is a guess. */
   public static final double CARRIAGE_MASS_KG = 2.0;
-  /** The usable travel: the stick's full position is 8 in above the bottom (the director, 14 Nov). */
-  public static final double TRAVEL_METERS = 8.0 * 0.0254;
-  /** No margin: the soft limit is the 8 in the director asked for (the hard stop is beyond it). */
-  public static final double SOFT_LIMIT_MARGIN_METERS = 0.0;
+  /** 9.5 in from the bottom stop to the top stop (the stand's code; the Thing says "about 15 in", unconfirmed). */
+  public static final double TRAVEL_METERS = 9.5 * 0.0254;
+  /** The soft limits stop this far inside the stops at the top: 0.25 in, as the stand's code does. */
+  public static final double SOFT_LIMIT_MARGIN_METERS = 0.25 * 0.0254;
   /** UNKNOWN: where the carriage's origin is relative to the robot's; a stand-in for the 3D view. */
   public static final Translation3d CARRIAGE_ORIGIN_AT_BOTTOM = new Translation3d(0.0, 0.0, 0.1);
 
@@ -60,6 +69,9 @@ public final class ElevatorConstants {
   /** How fast the stick's height may move the target: 0.12 m/s, about 4.7 in/s (not measured). */
   public static final double STICK_RATE_MPS = 0.12;
   public static final double JOG_VOLTS = 3.0;
+  /** Downward voltage, beyond holding against gravity, while homing onto the bottom switch. */
+  public static final double HOME_VOLTS = 1.0;
+  public static final double HOME_TIMEOUT_SECONDS = 20.0;
   /** 0.1 in, as the stand's code treats "arrived". */
   public static final double TOLERANCE_METERS = 0.1 * 0.0254;
 
