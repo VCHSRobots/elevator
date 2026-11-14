@@ -21,9 +21,6 @@ public class RobotContainer {
    */
   public static final int FORGE_PAD_PORT = 0;
 
-  /** The stick axis that sets the elevator height: axis 1 (the first stick's Y on a pad), forward = negative. */
-  public static final int STICK_AXIS = 1;
-
   final Unit unit;
   final CommandXboxController forgePad = new CommandXboxController(FORGE_PAD_PORT);
   final CommandXboxController lampPad = new CommandXboxController(BenchWiring.LAMP_PAD_PORT);
@@ -55,7 +52,7 @@ public class RobotContainer {
     double now = edu.wpi.first.wpilibj.Timer.getFPGATimestamp();
     stickCalls++;
     boolean fresh = edu.wpi.first.wpilibj.DriverStation.getStickAxisCount(FORGE_PAD_PORT) > 0;
-    double read = fresh ? -forgePad.getRawAxis(STICK_AXIS) : Double.NaN;
+    double read = fresh ? -forgePad.getLeftY() : Double.NaN;
     if (fresh) {
       lastStick = read;
       lastStickTime = now;
@@ -77,8 +74,9 @@ public class RobotContainer {
   private void configureBindings() {
     // Forge drives through forgePad, which reads as an untouched controller unless Forge is
     // driving; bind the same commands to a driver's pad on another port.
-    // The main stick (axis 1) sets the height: pushed forward (negative) is up, released is the
-    // bottom, full forward is 8 in. The target moves toward it at a moderate rate. Jog takes over while held.
+    forgePad.x().onTrue(elevator.home());
+    // The main stick sets the height: pushed forward (left Y negative) is up, released is the
+    // bottom. The target moves toward it at a moderate rate. Jog and home take over while held.
     elevator.setDefaultCommand(elevator.followAxis(this::stickHeightAxis));
     forgePad.rightBumper().whileTrue(elevator.jog(() -> 1.0));
     forgePad.leftBumper().whileTrue(elevator.jog(() -> -1.0));

@@ -22,7 +22,7 @@ class ElevatorScenarioTest {
   void itReachesAHeightAndNeverPassesTheTravel() {
     try (Scenario scenario = Scenario.start();
         Elevator elevator = new Elevator(0.0)) {
-      scenario.run(0.1); // disabled: the carriage is taken to be at the bottom, so it zeroes
+      scenario.run(0.1); // the bottom switch is pressed at rest: it zeroes the elevator
       assertTrue(elevator.zeroed());
       scenario.enable();
 
@@ -36,7 +36,7 @@ class ElevatorScenarioTest {
       CommandScheduler.getInstance().schedule(elevator.goTo(ElevatorConstants.TRAVEL_METERS + 0.1));
       scenario.run(8.0, () -> highest[0] = Math.max(highest[0], elevator.simHeightMeters()));
       assertTrue(highest[0] <= Elevator.MAX_HEIGHT_METERS + TOLERANCE, "highest " + highest[0]);
-      assertTrue(highest[0] <= ElevatorConstants.TRAVEL_METERS + TOLERANCE, "past the travel");
+      assertTrue(highest[0] < ElevatorConstants.TRAVEL_METERS, "it reached the hard stop");
       assertEquals(Elevator.MAX_HEIGHT_METERS, elevator.simHeightMeters(), TOLERANCE);
     }
   }
@@ -64,13 +64,24 @@ class ElevatorScenarioTest {
   }
 
   @Test
-  void itIsZeroedAtEnableAndTheTopIsEightInches() {
+  void theBottomSwitchZeroesIt() {
     try (Scenario scenario = Scenario.start();
-        Elevator elevator = new Elevator(0.0)) {
-      assertFalse(elevator.zeroed(), "before the first cycle the height is unknown");
+        Elevator elevator = new Elevator(0.1)) {
       scenario.run(0.1);
-      assertTrue(elevator.zeroed(), "disabled, it takes the bottom as zero");
-      assertEquals(8.0 * 0.0254, Elevator.MAX_HEIGHT_METERS, 1e-9);
+      assertFalse(elevator.zeroed(), "it starts off the switch, so its height is unknown");
+      scenario.enable();
+      CommandScheduler.getInstance().schedule(elevator.goTo(0.2));
+      scenario.run(0.5);
+      // Disabled, the sim has no brake, so the carriage sags and settles back near where it
+      // started; what matters is that goTo did not send it up to 0.2 m.
+      assertTrue(elevator.simHeightMeters() <= 0.1 + TOLERANCE, "goTo is refused until homed");
+
+      CommandScheduler.getInstance().schedule(elevator.home());
+      scenario.run(12.0);
+      assertTrue(elevator.bottomPressed());
+      assertTrue(elevator.zeroed());
+      assertEquals(0.0, elevator.heightMeters(), TOLERANCE);
+      assertEquals(0.0, elevator.simHeightMeters(), TOLERANCE);
     }
   }
 
@@ -78,6 +89,7 @@ class ElevatorScenarioTest {
   void itDoesNotMoveWhileDisabled() {
     try (Scenario scenario = Scenario.start();
         Elevator elevator = new Elevator(0.15)) {
+      CommandScheduler.getInstance().schedule(elevator.home());
       scenario.run(1.0);
       // Disabled, the motors are neutral in brake; the sim has no brake, so gravity lowers it.
       // What matters is that nothing drove it: it never rose.
