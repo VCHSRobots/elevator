@@ -31,7 +31,7 @@ The stand is wired for a bench test, not the final elevator (`hardware/BenchWiri
 - `subsystems/` holds one class per subsystem, each annotated `@Logged` so Epilogue logs its fields, with its facts in a constants file beside it and its physics in a sim class beside it: `Elevator`, `ElevatorConstants`, `ElevatorSimulation`, plus the temporary `BenchStand`.
 - `sim/` is the simulation support: `MechanismSim` (what every subsystem's sim implements), `SimRegistry` (stepped from `Robot.simulationPeriodic()`, which also sags the battery by the current drawn), and `TalonFXSimLink` (wires a simulated Kraken, here X44, to WPILib physics).
 - `forge/ForgeAbort` reads `/Forge/Abort`; `Elevator` commands zero output and holds while it is true, and holds where it is once it clears.
-- `assets/Robot_Forge/` is the robot's model for AdvantageScope (its README says how to make and show it); the config is the template's, not yet matched to this stand's CAD.
+- `assets/Robot_Forge/` is the robot's model for AdvantageScope (its README says how to make and show it); `model.glb`, `model_0.glb` and `config.json` are committed. The carriage's calibration along the rails is still off. Lessons from the first simulation sessions are in `docs/sim-and-forge-lessons.md`: read it before simulating, driving a stick in the simulator or changing the 3D model.
 - `src/test/java/frc/robot/` holds the scenario tests: `Scenario` enables the simulated Driver Station, runs the scheduler in 20 ms steps of simulated time, and the test asserts on the subsystems. Nothing here touches a real robot.
 
 ## Build identity

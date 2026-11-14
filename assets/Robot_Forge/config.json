@@ -2,13 +2,19 @@
   "name": "Forge",
   "isFRCRobot": true,
   "disableSimplification": false,
-  "rotations": [],
-  "position": [0, 0, 0],
+  "rotations": [
+    { "axis": "x", "degrees": 180 },
+    { "axis": "z", "degrees": -90 }
+  ],
+  "position": [1, 1, -0.2],
   "cameras": [],
   "components": [
     {
-      "zeroedRotations": [],
-      "zeroedPosition": [0, 0, -0.1]
+      "zeroedRotations": [
+        { "axis": "x", "degrees": 180 },
+        { "axis": "z", "degrees": -90 }
+      ],
+      "zeroedPosition": [1, 1, -0.2]
     }
   ]
 }
