@@ -30,7 +30,6 @@ import edu.wpi.first.units.measure.AngularVelocity;
 import edu.wpi.first.units.measure.Current;
 import edu.wpi.first.units.measure.Voltage;
 import edu.wpi.first.util.sendable.SendableRegistry;
-import edu.wpi.first.wpilibj.DigitalInput;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.smartdashboard.Mechanism2d;
@@ -46,10 +45,10 @@ import java.util.function.DoubleSupplier;
 
 /**
  * A two-Kraken elevator on Phoenix 6: Motion Magic position control in metres, soft limits from
- * the travel, limit switches on DIO that stop it at either end and zero it at the bottom, a
- * stator current limit, and every speed scaled by {@code kSlowFirst}. Until the bottom switch
- * has been seen the height is unknown: the soft limits stay off and {@link #goTo} refuses; use
- * {@link #home}. In simulation an {@link ElevatorSimulation} provides the physics; nothing else
+ * the travel, a stator current limit, and every speed scaled by {@code kSlowFirst}. There are no
+ * limit switches: the stand has hard stops that cannot hurt it, and the carriage is assumed to
+ * rest on the bottom stop whenever the robot is disabled, so while disabled the height is set to
+ * zero there. The soft limits (0 and {@link #MAX_HEIGHT_METERS}) are always on. In simulation an {@link ElevatorSimulation} provides the physics; nothing else
  * differs from the robot. Published for AdvantageScope under {@code /Forge/Elevator}: {@code
  * Mechanism} (a Mechanism2d) and {@code Components} (a Pose3d[] struct, the carriage). While
  * Forge's abort flag is set ({@link ForgeAbort}) it commands zero output and holds, enabled or
@@ -61,6 +60,9 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
   /** The highest the code will drive the carriage: the soft limit. */
   public static final double MAX_HEIGHT_METERS = TRAVEL_METERS - SOFT_LIMIT_MARGIN_METERS;
 
+  /** Re-zero only when the height is off by more than this, to spare the CAN bus. */
+  private static final double ZERO_DEADBAND_METERS = 0.0005;
+
   enum Mode {
     HOLD,
     JOG,
@@ -68,8 +70,6 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
 
   @NotLogged private final TalonFX leader = new TalonFX(LEADER_CAN_ID);
   @NotLogged private final TalonFX follower = new TalonFX(FOLLOWER_CAN_ID);
-  @NotLogged private final DigitalInput bottomSwitch = new DigitalInput(BOTTOM_LIMIT_DIO);
-  @NotLogged private final DigitalInput topSwitch = new DigitalInput(TOP_LIMIT_DIO);
   @NotLogged private final StatusSignal<Angle> position = leader.getPosition();
   @NotLogged private final StatusSignal<AngularVelocity> velocity = leader.getVelocity();
   @NotLogged private final StatusSignal<Voltage> motorVoltage = leader.getMotorVoltage();
@@ -98,10 +98,7 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
   double appliedVolts;
   double statorAmps;
   boolean zeroed;
-  boolean bottomPressed;
-  boolean topPressed;
   boolean aborted;
-  private boolean wasBottomPressed;
 
   public Elevator() {
     this(0.0);
@@ -125,7 +122,7 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
     config.Slot0.kD = kD;
     config.MotionMagic.MotionMagicCruiseVelocity = CRUISE_VELOCITY_MPS * kSlowFirst;
     config.MotionMagic.MotionMagicAcceleration = ACCELERATION_MPS2 * kSlowFirst;
-    config.SoftwareLimitSwitch = softLimits(false); // on once the bottom switch has zeroed it
+    config.SoftwareLimitSwitch = softLimits();
     leader.getConfigurator().apply(config);
     follower.getConfigurator().apply(config);
     follower.setControl(
@@ -145,14 +142,14 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
     robotPose = nt.getStructTopic(TABLE + "/RobotPose", Pose3d.struct).publish();
 
     if (RobotBase.isSimulation()) {
-      sim = new ElevatorSimulation(leader, follower, bottomSwitch, topSwitch, simStartMeters);
+      sim = new ElevatorSimulation(leader, follower, simStartMeters);
       SimRegistry.register(sim);
     } else {
       sim = null;
     }
   }
 
-  /** Goes to a height in metres, clamped to the travel, and ends there; refused until homed. */
+  /** Goes to a height in metres, clamped to the travel, and ends there; refused until zeroed. */
   public Command goTo(double meters) {
     return runOnce(
             () -> {
@@ -202,19 +199,6 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
         .withName("ElevatorFollowAxis");
   }
 
-  /** Lowers slowly onto the bottom switch, which zeroes the height, then holds there. */
-  public Command home() {
-    return runEnd(
-            () -> {
-              mode = Mode.JOG;
-              jogVolts = -HOME_VOLTS;
-            },
-            this::holdHere)
-        .until(() -> bottomPressed)
-        .withTimeout(HOME_TIMEOUT_SECONDS)
-        .withName("ElevatorHome");
-  }
-
   public boolean atTarget() {
     return Math.abs(targetMeters - heightMeters) < TOLERANCE_METERS;
   }
@@ -230,10 +214,6 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
 
   public boolean zeroed() {
     return zeroed;
-  }
-
-  public boolean bottomPressed() {
-    return bottomPressed;
   }
 
   /** Whether Forge's abort flag held it this cycle. */
@@ -253,12 +233,9 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
     velocityMps = velocity.getValueAsDouble();
     appliedVolts = motorVoltage.getValueAsDouble();
     statorAmps = statorCurrent.getValueAsDouble();
-    bottomPressed = pressed(bottomSwitch);
-    topPressed = pressed(topSwitch);
-    if (bottomPressed && !wasBottomPressed) {
-      zeroHere();
+    if (DriverStation.isDisabled() && !forgeAbort.isSet()) {
+      zeroHere(); // the carriage is assumed to be on the bottom stop at every enable
     }
-    wasBottomPressed = bottomPressed;
     aborted = forgeAbort.isSet();
     var running = getCurrentCommand();
     runningCommand = running == null ? "none" : running.getName();
@@ -269,12 +246,8 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
       holdHere();
       leader.setControl(neutral);
     } else if (mode == Mode.JOG) {
-      if ((jogVolts < 0 && bottomPressed) || (jogVolts > 0 && topPressed)) {
-        holdHere();
-        drive();
-      } else {
-        leader.setControl(volts.withOutput(kG + jogVolts));
-      }
+      // The soft limits stop it at 0 and the top; the hard stops cannot hurt it.
+      leader.setControl(volts.withOutput(kG + jogVolts));
     } else {
       drive();
     }
@@ -294,18 +267,13 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
     t.getEntry("Elev/SimHeightMeters").setDouble(simHeightMeters());
     t.getEntry("Elev/AppliedVolts").setDouble(appliedVolts);
     t.getEntry("Elev/StatorAmps").setDouble(statorAmps);
-    t.getEntry("Elev/BottomPressed").setBoolean(bottomPressed);
-    t.getEntry("Elev/TopPressed").setBoolean(topPressed);
   }
 
-  /** Holds the target, but rests on the bottom stop and never presses into the top one. */
+  /** Holds the target; at the bottom it rests on the stop. */
   private void drive() {
-    if (bottomPressed && targetMeters <= heightMeters + TOLERANCE_METERS) {
+    if (targetMeters <= TOLERANCE_METERS && heightMeters <= 2 * TOLERANCE_METERS) {
       leader.setControl(neutral);
       return;
-    }
-    if (topPressed && targetMeters > heightMeters) {
-      targetMeters = heightMeters;
     }
     leader.setControl(toHeight.withPosition(targetMeters));
   }
@@ -315,27 +283,23 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
     targetMeters = heightMeters;
   }
 
+  /** Calls the present position zero (only while disabled), and marks the height known. */
   private void zeroHere() {
-    leader.setPosition(0.0);
-    targetMeters = Math.max(targetMeters - heightMeters, 0.0); // the same place, in the new frame
-    heightMeters = 0.0;
-    if (!zeroed) {
-      zeroed = true;
-      leader.getConfigurator().apply(softLimits(true)); // the follower only copies the leader
+    if (Math.abs(heightMeters) > ZERO_DEADBAND_METERS) {
+      leader.setPosition(0.0);
+      heightMeters = 0.0;
     }
+    targetMeters = 0.0;
+    zeroed = true;
   }
 
-  private static SoftwareLimitSwitchConfigs softLimits(boolean enabled) {
+  private static SoftwareLimitSwitchConfigs softLimits() {
     var limits = new SoftwareLimitSwitchConfigs();
-    limits.ForwardSoftLimitEnable = enabled;
+    limits.ForwardSoftLimitEnable = true;
     limits.ForwardSoftLimitThreshold = MAX_HEIGHT_METERS;
-    limits.ReverseSoftLimitEnable = enabled;
+    limits.ReverseSoftLimitEnable = true;
     limits.ReverseSoftLimitThreshold = 0.0;
     return limits;
-  }
-
-  private static boolean pressed(DigitalInput input) {
-    return input.get() != LIMIT_PRESSED_IS_LOW;
   }
 
   private void publish() {
@@ -361,8 +325,6 @@ public class Elevator extends SubsystemBase implements AutoCloseable {
     forgeAbort.close();
     mechanismBuilder.close();
     mechanism.close();
-    bottomSwitch.close();
-    topSwitch.close();
     leader.close();
     follower.close();
   }
